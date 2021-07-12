@@ -20,6 +20,6 @@ jobs:
         with:
           arch: armv7
           distro: ubuntu18.04
-        run: |
-          echo $(uname -a)
-          make image
+          run: |
+            echo $(uname -a)
+            make image
