@@ -17,13 +17,19 @@ env:
 jobs:
   build-docker:
     name: Build Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: github.head_ref != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build Docker image
+
+      - uses: uraimo/run-on-arch-action@v2.0.5
+        name: Build Docker image
+        with:
+          arch: armv7
+          distro: ubuntu18.04
         run: |
+          echo $(uname -a)
           make image
   check-go:
     name: Ensure Go modules synchronicity
