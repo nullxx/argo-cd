@@ -21,8 +21,8 @@ jobs:
           arch: armv7
           distro: ubuntu18.04
           install: |
-            sudo apt-get update
-            sudo apt-get install build-essential -y
+            apt-get update
+            apt-get install build-essential sudo -y
           run: |
             echo $(uname -a)
             make image
