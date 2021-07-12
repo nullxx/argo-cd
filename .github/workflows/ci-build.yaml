@@ -1,4 +1,4 @@
-name: Integration tests
+name: Test build image
 on:
   push:
     branches:
@@ -12,7 +12,6 @@ jobs:
   build-docker:
     name: Build Docker image
     runs-on: ubuntu-18.04
-    if: github.head_ref != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
