@@ -22,7 +22,7 @@ jobs:
           distro: ubuntu18.04
           install: |
             apt-get update
-            apt-get install build-essential sudo -y
+            apt-get install build-essential go git -y
           run: |
             echo $(uname -a)
             make image
