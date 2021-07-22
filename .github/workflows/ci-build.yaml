@@ -25,7 +25,7 @@ jobs:
       - run: |
           ls -la
           cp -r master/patches main/patches
-          mv -r main/* .
+          mv main/* .
           git apply patches/arm64_building.patch
       -
         name: Set up QEMU
