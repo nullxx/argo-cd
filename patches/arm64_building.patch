@@ -20,6 +20,14 @@ index 93ab84629..204f65405 100644
  COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
  COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
  COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+@@ -91,7 +91,7 @@ FROM docker.io/library/node:12.18.4 as argocd-ui
+ WORKDIR /src
+ ADD ["ui/package.json", "ui/yarn.lock", "./"]
+ 
+-RUN yarn install --network-timeout 1000000000
++RUN yarn install --network-timeout 1000000000 
+ 
+ ADD ["ui/", "."]
 @@ -137,4 +137,4 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
  RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
  RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
