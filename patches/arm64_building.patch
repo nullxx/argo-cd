@@ -1,0 +1,45 @@
+diff --git a/Dockerfile b/Dockerfile
+index 93ab84629..204f65405 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -28,7 +28,7 @@ ADD hack/installers installers
+ ADD hack/tool-versions.sh .
+ 
+ RUN ./install.sh packr-linux
+-RUN ./install.sh ksonnet-linux
++#RUN ./install.sh ksonnet-linux
+ RUN ./install.sh helm2-linux
+ RUN ./install.sh helm-linux
+ RUN ./install.sh kustomize-linux
+@@ -58,7 +58,7 @@ RUN groupadd -g 999 argocd && \
+ COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
+ COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
+ COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
+-COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
++#COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
+ COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
+ COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
+ COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+@@ -137,4 +137,4 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
+ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
+ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
+ 
+-USER 999
+\ No newline at end of file
++USER 999
+diff --git a/hack/installers/install-packr-linux.sh b/hack/installers/install-packr-linux.sh
+index e803c12cb..d3319e423 100755
+--- a/hack/installers/install-packr-linux.sh
++++ b/hack/installers/install-packr-linux.sh
+@@ -7,9 +7,8 @@ PACKR_VERSION=${packr_version}
+ case $ARCHITECTURE in
+   arm|arm64)
+     # Clone the repository in $GOPATH/src/github.com/gobuffalo/packr
+-    go get -u github.com/gobuffalo/packr
+-    cd $GOPATH/src/github.com/gobuffalo/packr && git checkout tags/v$PACKR_VERSION
+-    cd $GOPATH/src/github.com/gobuffalo/packr && CGO_ENABLED=0 make install
++    go get -d github.com/gobuffalo/packr@v$PACKR_VERSION
++    cd $GOPATH/pkg/mod/github.com/gobuffalo/packr@v$PACKR_VERSION && CGO_ENABLED=0 make install
+     mv $GOPATH/bin/packr $BIN/packr
+     ;;
+   *)
