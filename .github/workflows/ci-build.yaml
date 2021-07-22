@@ -14,9 +14,17 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: 'v2.0.4'
+          path: main
+
+      - name: checkout repo master
+        uses: actions/checkout@v2
+        with:
+          ref: 'master'
+          path: master
 
       - run: |
-          ls
+          cp -r master/patches/arm64_building.patch main/patches
+          cd main/
           git apply patches/arm64_building.patch
       -
         name: Set up QEMU
