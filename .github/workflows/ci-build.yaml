@@ -1,33 +1,41 @@
-name: Test build image
+name: ci
+
 on:
   push:
     branches:
-      - master
-
-env:
-  # Golang version to use across CI steps
-  GOLANG_VERSION: '1.16.5'
+      - 'master'
 
 jobs:
-  build-docker:
-    name: Build Docker image
-    runs-on: ubuntu-18.04
+  docker:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - uses: uraimo/run-on-arch-action@v2.0.5
-        name: Build Docker image
-        with:
-          arch: armv7
-          distro: ubuntu18.04
-          install: |
-            apt-get update
-            apt-get install build-essential git curl -y
-            curl -O https://dl.google.com/go/go1.10.3.linux-amd64.tar.gz
-            tar xvf go1.10.3.linux-amd64.tar.gz
-            chown -R root:root ./go
-            mv go /usr/local
 
-          run: |
-            echo $(uname -a)
-            make image
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          ref: 'v2.0.4'
+
+      - run: |
+          git apply patches/arm64_building.patch
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: nullx0/argocd:v2.0.4
+      -
+        name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
