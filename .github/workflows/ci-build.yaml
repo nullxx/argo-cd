@@ -24,7 +24,7 @@ jobs:
 
       - run: |
           ls -la
-          cp -r master/patches/arm64_building.patch main/patches
+          cp -r master/patches main/patches
           cd main/
           git apply patches/arm64_building.patch
       -
