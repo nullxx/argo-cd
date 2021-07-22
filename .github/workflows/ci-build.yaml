@@ -16,6 +16,7 @@ jobs:
           ref: 'v2.0.4'
 
       - run: |
+          ls
           git apply patches/arm64_building.patch
       -
         name: Set up QEMU
