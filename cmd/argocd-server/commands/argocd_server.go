@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -49,6 +50,7 @@ func NewCommand() *cobra.Command {
 		insecure                 bool
 		listenPort               int
 		metricsPort              int
+		otlpAddress              string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
@@ -61,8 +63,10 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
+		contentSecurityPolicy    string
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
+		staticAssetsDir          string
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -91,11 +95,13 @@ func NewCommand() *cobra.Command {
 			appclientsetConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+			vers := common.GetVersion()
+			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
-			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
+			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
@@ -123,43 +129,51 @@ func NewCommand() *cobra.Command {
 			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:            insecure,
-				ListenPort:          listenPort,
-				MetricsPort:         metricsPort,
-				Namespace:           namespace,
-				BaseHRef:            baseHRef,
-				RootPath:            rootPath,
-				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
-				RepoClientset:       repoclientset,
-				DexServerAddr:       dexServerAddress,
-				DisableAuth:         disableAuth,
-				EnableGZip:          enableGZip,
-				TLSConfigCustomizer: tlsConfigCustomizer,
-				Cache:               cache,
-				XFrameOptions:       frameOptions,
-				RedisClient:         redisClient,
+				Insecure:              insecure,
+				ListenPort:            listenPort,
+				MetricsPort:           metricsPort,
+				Namespace:             namespace,
+				BaseHRef:              baseHRef,
+				RootPath:              rootPath,
+				KubeClientset:         kubeclientset,
+				AppClientset:          appClientSet,
+				RepoClientset:         repoclientset,
+				DexServerAddr:         dexServerAddress,
+				DisableAuth:           disableAuth,
+				EnableGZip:            enableGZip,
+				TLSConfigCustomizer:   tlsConfigCustomizer,
+				Cache:                 cache,
+				XFrameOptions:         frameOptions,
+				ContentSecurityPolicy: contentSecurityPolicy,
+				RedisClient:           redisClient,
+				StaticAssetsDir:       staticAssetsDir,
 			}
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
+			var closer func()
 			for {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
+				if otlpAddress != "" {
+					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress)
+					if err != nil {
+						log.Fatalf("failed to initialize tracing: %v", err)
+					}
+				}
 				argocd := server.NewServer(ctx, argoCDOpts)
 				argocd.Run(ctx, listenPort, metricsPort)
 				cancel()
+				closer()
 			}
 		},
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().BoolVar(&insecure, "insecure", env.ParseBoolFromEnv("ARGOCD_SERVER_INSECURE", false), "Run server without TLS")
-	var staticAssetsDir string
-	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
-	_ = command.Flags().MarkDeprecated("staticassets", "The --staticassets flag is not longer supported. Static assets are embedded into binary.")
+	command.Flags().StringVar(&staticAssetsDir, "staticassets", env.StringFromEnv("ARGOCD_SERVER_STATIC_ASSETS", "/shared/app"), "Directory path that contains additional static assets")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
@@ -172,8 +186,10 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
-	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", int(env.ParseDurationFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60*time.Second, 0, math.MaxInt32).Seconds()), "Repo server RPC call timeout seconds.")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
+	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)

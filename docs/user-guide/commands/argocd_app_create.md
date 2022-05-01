@@ -26,7 +26,7 @@ argocd app create APPNAME [flags]
 	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
 	# Create a app using a custom tool:
-	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+	argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 
 ```
 
@@ -38,7 +38,7 @@ argocd app create APPNAME [flags]
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
-      --dest-namespace string                      K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
+      --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
@@ -46,11 +46,14 @@ argocd app create APPNAME [flags]
       --env string                                 Application environment to monitor
   -f, --file string                                Filename or URL to Kubernetes manifests for the app
       --helm-chart string                          Helm Chart name
+      --helm-pass-credentials                      Pass credentials to all domain
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
+      --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for create
+      --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)
@@ -75,6 +78,7 @@ argocd app create APPNAME [flags]
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
+      --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
@@ -90,38 +94,24 @@ argocd app create APPNAME [flags]
 ### Options inherited from parent commands
 
 ```
-      --as string                       Username to impersonate for the operation
-      --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --auth-token string               Authentication token
-      --certificate-authority string    Path to a cert file for the certificate authority
-      --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --client-key string               Path to a client key file for TLS
-      --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
-      --context string                  The name of the kubeconfig context to use
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
-      --headless                        If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
-      --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
-  -n, --namespace string                If present, the namespace scope for this CLI request
-      --password string                 Password for basic authentication to the API server
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --server string                   The address and port of the Kubernetes API server
+      --server string                   Argo CD server address
       --server-crt string               Server certificate file
-      --tls-server-name string          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --token string                    Bearer token for authentication to the API server
-      --user string                     The name of the kubeconfig user to use
-      --username string                 Username for basic authentication to the API server
 ```
 
 ### SEE ALSO

@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
-	jwtgo "github.com/dgrijalva/jwt-go/v4"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims
 func MapClaims(claims jwtgo.Claims) (jwtgo.MapClaims, error) {
+	if mapClaims, ok := claims.(*jwtgo.MapClaims); ok {
+		return *mapClaims, nil
+	}
 	claimsBytes, err := json.Marshal(claims)
 	if err != nil {
 		return nil, err
@@ -69,15 +72,6 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 	}
 
 	return groups
-}
-
-func GetID(m jwtgo.MapClaims) (string, error) {
-	if jtiIf, ok := m["jti"]; ok {
-		if jti, ok := jtiIf.(string); ok {
-			return jti, nil
-		}
-	}
-	return "", fmt.Errorf("jti '%v' is not a string", m["jti"])
 }
 
 func numField(m jwtgo.MapClaims, key string) (int64, error) {
